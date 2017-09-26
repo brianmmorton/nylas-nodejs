@@ -1,6 +1,6 @@
 _ = require 'underscore'
 clone = require 'clone'
-request = require 'request-promise'
+request = require 'request'
 Promise = require 'bluebird'
 RestfulModel = require './models/restful-model'
 RestfulModelCollection = require './models/restful-model-collection'
@@ -74,11 +74,17 @@ class NylasConnection
   request: (options={}) ->
     options = @requestOptions(options)
 
-    promise = request options
-
-    return promise.then (response, body) ->
-      if options.downloadRequest
-        return response
-      else
-        body = JSON.parse(body) if _.isString body
-        return body
+    new Promise (resolve, reject) ->
+      request options, (error, response, body) ->
+        if error or response.statusCode > 299
+          error ?= new Error(body.message)
+          reject(error)
+        else
+          if options.downloadRequest
+            return resolve(response)
+          else
+            try
+              body = JSON.parse(body) if _.isString body
+              resolve(body)
+            catch error
+              reject(error)
